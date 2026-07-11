@@ -1,0 +1,148 @@
+Read and fully understand CLAUDE.md.
+
+You are starting a new project initialization phase.
+
+Your first goal is NOT to write production code.
+
+Your goal is to bootstrap the project intelligence structure and start the domain discovery process.
+
+Follow these steps:
+
+1. Create the documentation structure described in CLAUDE.md.
+
+Create:
+
+- docs/product
+- docs/architecture
+- docs/engineering
+- docs/agents
+- docs/features
+- docs/branches
+- docs/adr
+- docs/services
+- scratchpad
+
+For each folder:
+- create a README.md explaining its purpose;
+- explain what type of knowledge belongs there;
+- explain when an agent should load this context.
+
+---
+
+2. Initialize the agent contexts.
+
+Create:
+
+- docs/agents/analyst-context.md
+- docs/agents/architect-context.md
+- docs/agents/challenger-context.md
+
+Each file must describe:
+- agent responsibilities;
+- expected inputs;
+- expected outputs;
+- what knowledge the agent can update.
+
+Do not invent decisions yet.
+
+---
+
+3. Start the first domain analysis iteration.
+
+Act as three separate agents:
+
+## Analyst
+
+Analyze Forma from a product and business perspective.
+
+Identify:
+- users;
+- main workflows;
+- domain concepts;
+- missing requirements;
+- ambiguities.
+
+Save the result into:
+
+docs/product/
+
+---
+
+## Architect
+
+Based only on the Analyst output, propose:
+
+- possible bounded contexts;
+- domain boundaries;
+- candidate aggregates;
+- architecture considerations.
+
+Do not decide the final architecture yet.
+
+Save proposals into:
+
+docs/architecture/
+
+---
+
+## Challenger
+
+Review Analyst and Architect outputs.
+
+Identify:
+
+- missing concepts;
+- questionable assumptions;
+- over-engineering risks;
+- simplifications.
+
+Save findings into:
+
+scratchpad/
+
+---
+
+4. Create the initial project context map.
+
+Create:
+
+docs/architecture/context-map.md
+
+The context map must describe:
+
+- current domain areas;
+- possible service boundaries;
+- relationships between concepts.
+
+Do not assume microservices are mandatory.
+Evaluate alternatives.
+
+---
+
+5. Create an initial list of open questions.
+
+Create:
+
+scratchpad/open-questions/
+
+Include unresolved questions that require future iterations.
+
+---
+
+Important rules:
+
+- Do not write application code.
+- Do not create APIs.
+- Do not create database schemas.
+- Do not make irreversible architecture decisions.
+- Do not assume a microservice architecture without justification.
+
+The objective of this iteration is building shared understanding.
+
+At the end, provide a summary containing:
+
+- documents created;
+- decisions made;
+- assumptions;
+- open questions;
+- recommended next analysis iteration.
