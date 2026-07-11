@@ -29,4 +29,4 @@ Also (at this folder's root, once populated): `service-map.md`, `dependencies.md
 
 ## Current state
 
-Empty. No services have been decided yet — the project is still evaluating whether/how to decompose Forma at all (see `../architecture/architecture-approach.md`). This folder is a placeholder for when that decision is made.
+Four services decided ([ADR-005](../architecture/adr/ADR-005-microservices-architecture.md)): `identity-service`, `exercise-service`, `training-planning-service`, `training-execution-service`, each bootstrapped with a placeholder `README.md` only. None are implemented yet, and none have `domain.md`/`architecture.md`/`api-contracts.md`/`decisions/`/`open-questions.md` populated — those need the still-deferred integration-pattern (`../architecture/integration-patterns.md`) and technology-stack decisions first.

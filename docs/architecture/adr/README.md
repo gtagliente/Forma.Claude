@@ -24,11 +24,12 @@ One file per decision (`ADR-NNN-short-title.md`), each recording: context, the d
 
 ## Current state
 
-Four ADRs accepted, all promoted from Iteration 1 open questions once the product owner decided them:
+Five ADRs accepted, all promoted from Iteration 1 open questions and follow-on architecture decisions once the product owner decided them:
 
 - **ADR-001** — Single normal-user model for this iteration (no coach/delegation).
 - **ADR-002** — Workout versioning and Workout Session snapshot semantics (Routine tracks latest, Session pins a specific version).
 - **ADR-003** — Offline-capable Workout Session logging (local cache, sync on reconnect; scoped to session logging only).
 - **ADR-004** — Progress Tracking computations are not retroactively recomputed when a historical session is edited/deleted.
+- **ADR-005** — Microservices architecture: four independently deployable services (identity, exercise, training-planning, training-execution), each with an independent datastore.
 
-Remaining Iteration 1 output is still proposal-only (`../bounded-contexts.md`, `../architecture-approach.md`, `../context-map.md`) except where updated to reflect the four ADRs above.
+Remaining Iteration 1 output is still proposal-only (`../bounded-contexts.md`) except where updated to reflect the five ADRs above. `../architecture-approach.md` and `../context-map.md` have been updated to reflect ADR-005's outcome.
