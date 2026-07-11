@@ -21,7 +21,7 @@ _Architect output. Proposal only — **no decision is made here**; this becomes 
 
 ## Recommendation (proposal, not a decision)
 
-**Option A — modular monolith**, with module boundaries matching the five contexts in `bounded-contexts.md` (Exercise Library, Training Planning, Training Execution, Progress Analytics, AI Enrichment; Identity added if/when confirmed). Revisit Option B if and when a concrete, demonstrated need emerges (e.g. independent scaling of AI Enrichment due to cost/latency isolation, or independent team ownership once the org has more than one team). This defers the microservices investment without foreclosing it — `CLAUDE.md`'s example services structure remains a valid *future* target, reachable by extracting a module once justified, rather than a starting assumption.
+**Option A — modular monolith**, with module boundaries matching the three structured domain areas in `context-map.md` (Exercise Library, Training Planning, Training Execution), plus a minimal Identity module now confirmed by [ADR-001](adr/ADR-001-user-model-iteration-1.md) (a single `User` concept, no coach/delegation). Progress Analytics and AI Enrichment remain internal capabilities of Training Execution and Exercise Library respectively until they earn independent structure. Revisit Option B if and when a concrete, demonstrated need emerges (e.g. independent scaling of AI Enrichment due to cost/latency isolation, or independent team ownership once the org has more than one team). This defers the microservices investment without foreclosing it — `CLAUDE.md`'s example services structure remains a valid *future* target, reachable by extracting a module once justified, rather than a starting assumption.
 
 ## Explicitly deferred (not addressed by this proposal)
 

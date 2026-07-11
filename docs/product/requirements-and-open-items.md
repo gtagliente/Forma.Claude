@@ -2,13 +2,13 @@
 
 _Analyst output. This is a discovery document, not a spec — many items below are questions, not decisions._
 
-## Users (candidate — unconfirmed)
+## Users (decided — [ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md))
 
-`CLAUDE.md` never explicitly names a user/persona. The Analyst infers at least one persona is required for the described workflows to make sense, but the following are **not confirmed**:
+`CLAUDE.md` never explicitly names a user/persona; the product owner has now resolved this for the current iteration:
 
-1. **Solo athlete** — manages their own exercises/workouts/routines and logs their own sessions. Strongly implied by "the real execution of a workout by **a user**."
-2. **Coach/trainer directing another person** — not mentioned anywhere in `CLAUDE.md`. If Forma needs this, it materially changes the domain model (assignment, visibility, permissions) and should be resolved early, since it affects whether "user" scoping is single-tenant-per-athlete or has a delegation model.
-3. **Content curator / library maintainer** — someone (staff? every user?) who defines the canonical Exercise library, if one exists.
+1. **Solo athlete / normal user** — manages their own exercises/workouts/routines and logs their own sessions. Confirmed as the only persona for this iteration.
+2. **Coach/trainer directing another person** — explicitly **not modeled** this iteration (see [ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md) and glossary "Explicitly out of scope"). May be revisited later if a real requirement emerges.
+3. **Content curator / library maintainer** — still **open**. The shared Exercise library's governance (who can add to it, beyond a user promoting their own private Exercise — see domain-model.md → Exercise) is not yet specified.
 
 ## Main workflows (as inferable from the described lifecycle)
 
@@ -22,26 +22,27 @@ Workflow 4 in particular is under-specified — see open items.
 
 ## Missing requirements (not addressed at all in `CLAUDE.md`)
 
-- **Identity & access** — accounts, authentication, authorization, data ownership/privacy. Nothing said.
-- **Multi-user relationships** — sharing, following, coach-athlete, social features. Nothing said.
+- **Identity & access** — accounts, authentication, authorization, data ownership/privacy. `CLAUDE.md` says nothing; the persona question is now resolved ([ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md) — single normal user), but auth/account mechanics themselves are still undesigned.
+- **Multi-user relationships** — sharing, following, coach-athlete, social features. `CLAUDE.md` says nothing, and [ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md) explicitly excludes coach-athlete delegation from this iteration; general social/sharing features remain unaddressed.
 - **Units & localization** — kg vs lb, metric vs imperial, language. Nothing said, but directly affects Workout/Session data shape.
 - **Body metrics / goals** — bodyweight, measurements, target goals. Related to Progress Tracking but not mentioned as an input.
 - **Notifications/reminders** — nothing said about reminding a user of a scheduled Routine day.
 - **Offline / connectivity** — training often happens in gyms with poor connectivity; not addressed.
 - **Media handling** — Exercise "media resources" are mentioned but not how they're captured, stored, or sized.
 - **Monetization / business model** — entirely absent; may not matter for domain modeling but affects scope.
-- **Exercise library governance** — is it curated/shared, user-editable, or both? Directly affects the Exercise bounded-context design.
+- ~~**Exercise library governance**~~ — **Resolved**: both a shared/curated library and private per-user Exercises exist; private Exercises are visible only to their creator, with a promotion-to-shared mechanism deferred to a future iteration. See `domain-model.md` → Exercise. Curatorship of the *shared* library itself (item 3 under Users, above) remains open.
 
 ## Ambiguities in what IS described
 
-- **Workout ↔ Routine reference semantics**: "should reference workouts but should not duplicate workout details" — does a live edit to a Workout retroactively change what a Routine "means," including for Routines already partially executed?
-- **Routine scheduling model**: recurring weekly pattern (as shown in the example) vs. specific calendar dates — or both?
-- **Session provenance**: must every Workout Session trace back to a specific Workout (and via a Routine occurrence), or can sessions be freestanding ("did an ad hoc session today")?
-- **Set-level granularity**: is a "set" a first-class, addressable concept (relevant for comparing planned vs. actual set-by-set, as the example under Workout Session implies), or just a count?
-- **Difficulty attribute**: global/objective (set once per Exercise) or subjective per user?
-- **Tags**: free-form or controlled vocabulary — matters for search/filtering and for AI enrichment consistency.
-- **AI enrichment trigger & trust**: on-demand vs. automatic; does enrichment content require human review/acceptance before it's treated as part of the Exercise's information, or is it always clearly labeled as AI-sourced and separate?
+- ~~**Workout ↔ Routine reference semantics**~~ — **Resolved**: Routine tracks the latest Workout Version (live); Workout Session pins the version current when it started. See [ADR-002](../architecture/adr/ADR-002-workout-versioning-and-session-snapshot.md).
+- **Routine scheduling model**: recurring weekly pattern (as shown in the example) vs. specific calendar dates — or both? Still open.
+- **Session provenance**: must every Workout Session trace back to a specific Workout (and via a Routine occurrence), or can sessions be freestanding ("did an ad hoc session today")? Still open.
+- ~~**Set-level granularity**~~ — **Resolved**: Set is an inline ordered entry embedded in its parent Workout Version / Workout Session, not an independently addressable concept. See `domain-model.md` → Set.
+- **Exercise variation/parameterization** — **Resolved**: modeled via an Exercise parent/child (generalization/specialization) hierarchy, not as one Exercise with an equipment parameter. See `domain-model.md` → Exercise.
+- **Difficulty attribute**: global/objective (set once per Exercise) or subjective per user? Still open.
+- **Tags**: free-form or controlled vocabulary — matters for search/filtering and for AI enrichment consistency. Still open.
+- ~~**AI enrichment trigger & trust**~~ — **Resolved**: enrichment stays separate and clearly labeled, never auto-merged; a promotion mechanism lets a user explicitly accept a suggestion into the Exercise's standard data. See `domain-model.md` → Enrichment. Trigger mechanism (on-demand vs. automatic) is still open.
 
 ## Recommendation for next iteration
 
-Resolve the **user/persona question** (solo-only vs. coach-athlete) before the Architect commits to bounded contexts involving identity or authorization, since it is the single highest-leverage unknown — it changes the shape of nearly every other concept's ownership model. See `../../scratchpad/open-questions/iteration-1.md`.
+The user/persona question and the Workout/Routine/Session reference semantics — the two items previously flagged as highest-leverage — are now resolved ([ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md), [ADR-002](../architecture/adr/ADR-002-workout-versioning-and-session-snapshot.md)). The next highest-leverage open item is **who owns body metrics and goals** (not currently assigned to any domain area, but plausibly relevant to Progress Tracking) — see `../../scratchpad/open-questions/iteration-1.md` (#7).

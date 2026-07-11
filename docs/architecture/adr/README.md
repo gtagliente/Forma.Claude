@@ -24,4 +24,9 @@ One file per decision (`ADR-NNN-short-title.md`), each recording: context, the d
 
 ## Current state
 
-Empty — no ADRs have been accepted yet. Iteration 1 produced only proposals (`../bounded-contexts.md`, `../architecture-approach.md`); nothing has been decided, so nothing has been promoted here yet.
+Two ADRs accepted, both promoted from Iteration 1 open questions once the product owner decided them:
+
+- **ADR-001** — Single normal-user model for this iteration (no coach/delegation).
+- **ADR-002** — Workout versioning and Workout Session snapshot semantics (Routine tracks latest, Session pins a specific version).
+
+Remaining Iteration 1 output is still proposal-only (`../bounded-contexts.md`, `../architecture-approach.md`, `../context-map.md`) except where updated to reflect the two ADRs above.

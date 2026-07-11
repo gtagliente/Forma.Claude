@@ -36,4 +36,6 @@ See [domain-model.md](domain-model.md) for the detailed shape of each concept, a
 
 ## Explicitly not yet defined
 
-`CLAUDE.md` describes the domain but does not yet define **who the user is** (a solo athlete tracking themselves? a coach managing athletes? both?), nor the platform's business model. These are treated as open questions — see [requirements-and-open-items.md](requirements-and-open-items.md) — rather than assumed.
+`CLAUDE.md` does not define the platform's business model — still an open question, see [requirements-and-open-items.md](requirements-and-open-items.md).
+
+The user question is resolved: Forma has a single solo "normal user" persona for this iteration, with no coach/delegation model (see [ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md)).
