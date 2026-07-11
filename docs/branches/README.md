@@ -24,4 +24,4 @@ One subfolder per long-lived or notable branch (e.g. `main/`, `develop/`, `featu
 
 ## Current state
 
-Empty. No branches have been created yet — this is a documentation-only bootstrap on the initial working tree, with no version control history yet.
+One branch documented: `analysis/` — the current working branch, carrying out `CLAUDE.md`'s Initial Task (domain/architecture analysis) before any implementation. See `analysis/objectives.md`.
