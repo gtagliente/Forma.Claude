@@ -10,7 +10,9 @@ Owns the Exercise Library: Exercise (shared/curated + private per-user, visibili
 
 ## Status
 
-This file stays a pointer/summary — the real, actively-maintained knowledge base for this service now lives in its own repository (see `RepositoryPath`, below). `domain.md`, `architecture.md`, `api-contracts.md`, `decisions/`, `open-questions.md` are intentionally not populated here; their equivalents live there instead (`docs/product/domain-slice.md`, `docs/architecture/`, `docs/agents/`, etc.).
+`domain.md`, `architecture.md`, and `open-questions.md` are now populated — this is the central loop's output (Analyst/Architect, reconciled against what's actually built in `Forma.Exercise`): aggregate-level domain/architecture guidance and consolidated open questions, treated as the high-level input `Forma.Exercise`'s own local pipeline reads before doing feature-level work (see `Forma.Exercise/docs/agents/process.md`).
+
+`api-contracts.md` and `decisions/` stay unpopulated — explicitly deferred, not overlooked, pending the still-undecided inter-service integration pattern (`../../architecture/integration-patterns.md`, currently empty) per ADR-005. Implementation-level detail (exact field types, EF mappings, local ADRs, engineering standards) belongs in `Forma.Exercise`'s own `docs/`, not duplicated here.
 
 ## RepositoryPath
 

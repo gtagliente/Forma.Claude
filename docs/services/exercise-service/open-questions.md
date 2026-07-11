@@ -1,0 +1,26 @@
+# exercise-service — Open Questions
+
+Consolidates (a) still-open central questions relevant to this service, and (b) new implementation-grounded questions surfaced by reconciling `domain.md`/`architecture.md` against the actual code in `Forma.Exercise`.
+
+## Carried from central open items (not this service's to decide alone)
+
+1. **Content curator / library maintainer** — who governs the shared Exercise library, beyond a user promoting their own private Exercise? (`../../product/requirements-and-open-items.md` → Users, item 3.)
+2. **Difficulty** — global/objective (set once per Exercise) or subjective per user?
+3. **Tags** — free-form or controlled vocabulary?
+4. **Equipment** — its own referenceable/filterable concept, or stays a free attribute?
+5. **Enrichment trigger mechanism** — on-demand or automatic?
+6. **Cross-visibility hierarchy interaction** — can a private Exercise specialize a shared one, or vice versa? (`../../product/domain-model.md` → Exercise.) **Implementation note**: FT-002 (Exercise Hierarchy, `Forma.Exercise/docs/features/FT-002-exercise-hierarchy/`) left this unrestricted/permissive as a provisional default so the hierarchy feature wasn't blocked on it — this is not a resolution, just what's live in code until this question is actually answered.
+
+## New, surfaced by reconciling against the existing code (service-loop scope)
+
+7. **`ExerciseResource` vs. "Media Resource" naming** — keep the current implementation name (fine as a local term for this aggregate's slice of the concept) or rename to match the central ubiquitous language? See `domain.md`.
+8. ~~**Strongly-typed ID migration**~~ — **Resolved**: merged (`Forma.Exercise` branch `fix/ExerciseResourceMigration_stronglytypedIds`). Turned out broader than "before the hierarchy feature" — it was a live bug (PK defaulted to `Guid.Empty` for every `Exercise`, so creating a second one would fail); merged as a prerequisite for FT-001 (Ownership/Visibility) instead. See `Forma.Exercise/docs/architecture/adr/ADR-001-strongly-typed-exercise-id.md`.
+9. ~~**Shop/Customer template debt**~~ — **Resolved** (as of FT-003): the `Shop.Domain.Entities.CustomerAggregate`/`Shop.Query.EventHandlers` namespaces are gone from every live Exercise code path (`IExerciseUniquenessChecker`, `IExerciseBuilder`, `ExerciseWriteOnlyRepository`, `ConfigureServices`, `ExerciseEventHandler`), and the dead `DeleteCustomerCommandHandler.cs`/`UpdateCustomerCommandHandler.cs` stubs were replaced by real `DeleteExerciseCommandHandler`/`UpdateExerciseCommandHandler`. What's left (`Forma.Domain.ValueObjects.Email`, the `Customer`-folder `GetCustomerByIdQuery*` files) is unused/unreferenced dead code, not live template debt — a separate, lower-priority deletion, not a rename.
+10. ~~**Update/Delete for Exercise**~~ — **Resolved**: built. See `Forma.Exercise/docs/features/FT-003-update-delete/`. Delete blocks (domain-level `DomainArgumentException`, checked before the DB's `Restrict` FK would ever fire) when the Exercise still has hierarchy children.
+11. **Read-model gap** (Mongo query side missing `Resources`, event projection only handles Created) — close before or alongside the next feature that needs it? Still open — not touched by FT-003 (Update/Delete events aren't projected either, same pre-existing gap).
+12. ~~**Untracked-entity save bug in `CreateExerciseResourceCommandHandler`**~~ — **Resolved**. Found while reviewing FT-002, confirmed by manual testing: `repository.GetByIdAsync` returns the `Exercise` untracked (`AsNoTrackingWithIdentityResolution()`); `exercise.AddResource(...)` creates a **new `ExerciseResource`** (its own table, FK'd to `Exercise.Id`) that EF never learns about, so no `INSERT` was issued. An interim attempt to fix it with `repository.Update(exercise)` made things *worse* — `Update()`'s graph-walk classifies a new entity as Added only if its key is CLR-default; `ExerciseResource.Id` is client-generated (`ExerciseResourceId.New()`, always non-default), so it got classified Modified and EF threw `DbUpdateConcurrencyException` ("expected to affect 1 row, actually affected 0") trying to `UPDATE` a row that doesn't exist. Fixed by giving `ExerciseResource` its own first-class write-only repository (`IExerciseResourceWriteOnlyRepository<ExerciseResource, ExerciseResourceId>`, mirroring `IExerciseWriteOnlyRepository<Exercise, ExerciseId>`), so the handler calls the existing, unconditional `Add()` (not `Update()`) — sidestepping the Modified-vs-Added inference problem entirely rather than working around it. Required making `ExerciseResource` implement `IEntity<ExerciseResourceId>` (it previously implemented no interface at all).
+13. **No cross-service safeguard against orphaning `Workout` references on Exercise delete** — surfaced by FT-003 (`central-architect-gate.md`). `training-planning-service` doesn't exist yet and the integration-pattern decision (`../../architecture/integration-patterns.md`) is still empty, so nothing can be built to prevent this today — tracked so it isn't forgotten once both exist.
+
+## Status
+
+First real pass, consolidating what's known as of this loop. Not all of these need answers before starting *some* work — several (7, 9, 11–13) are the kind of thing the Service Analyst/Architect should triage per-feature as they come up, not necessarily resolve up front.
