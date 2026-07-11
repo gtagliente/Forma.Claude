@@ -24,12 +24,12 @@ Workflow 4 in particular is under-specified — see open items.
 
 - **Identity & access** — accounts, authentication, authorization, data ownership/privacy. `CLAUDE.md` says nothing; the persona question is now resolved ([ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md) — single normal user), but auth/account mechanics themselves are still undesigned.
 - **Multi-user relationships** — sharing, following, coach-athlete, social features. `CLAUDE.md` says nothing, and [ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md) explicitly excludes coach-athlete delegation from this iteration; general social/sharing features remain unaddressed.
-- **Units & localization** — kg vs lb, metric vs imperial, language. Nothing said, but directly affects Workout/Session data shape.
-- **Body metrics / goals** — bodyweight, measurements, target goals. Related to Progress Tracking but not mentioned as an input.
-- **Notifications/reminders** — nothing said about reminding a user of a scheduled Routine day.
-- **Offline / connectivity** — training often happens in gyms with poor connectivity; not addressed.
-- **Media handling** — Exercise "media resources" are mentioned but not how they're captured, stored, or sized.
-- **Monetization / business model** — entirely absent; may not matter for domain modeling but affects scope.
+- **Units & localization** — kg vs lb, metric vs imperial, language. **Explicitly deferred** — a deliberate scope choice for this iteration, not an oversight.
+- **Body metrics / goals** — bodyweight, measurements, target goals. **Explicitly deferred** — Progress Tracking's core (PRs, volume, trends) is fully derivable from Workout Session data alone, so this was never a blocker; see `../../scratchpad/open-questions/iteration-1.md` (#7).
+- **Notifications/reminders** — nothing said about reminding a user of a scheduled Routine day. **Explicitly deferred** — a deliberate scope choice for this iteration, not an oversight.
+- ~~**Offline / connectivity**~~ — **Resolved**: Workout Session logging (only) works offline, caching locally and syncing on reconnect. See [ADR-003](../architecture/adr/ADR-003-offline-workout-session-logging.md).
+- ~~**Media handling**~~ — **Resolved**: a Media Resource concept (uploaded file or external link) attaches to Exercise and Workout Session. Capture/storage mechanics remain implementation detail. See `domain-model.md` → Media Resource.
+- **Monetization / business model** — entirely absent; may not matter for domain modeling but affects scope. **Explicitly deferred** — out of scope for domain modeling.
 - ~~**Exercise library governance**~~ — **Resolved**: both a shared/curated library and private per-user Exercises exist; private Exercises are visible only to their creator, with a promotion-to-shared mechanism deferred to a future iteration. See `domain-model.md` → Exercise. Curatorship of the *shared* library itself (item 3 under Users, above) remains open.
 
 ## Ambiguities in what IS described
@@ -45,4 +45,4 @@ Workflow 4 in particular is under-specified — see open items.
 
 ## Recommendation for next iteration
 
-The user/persona question and the Workout/Routine/Session reference semantics — the two items previously flagged as highest-leverage — are now resolved ([ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md), [ADR-002](../architecture/adr/ADR-002-workout-versioning-and-session-snapshot.md)). The next highest-leverage open item is **who owns body metrics and goals** (not currently assigned to any domain area, but plausibly relevant to Progress Tracking) — see `../../scratchpad/open-questions/iteration-1.md` (#7).
+Every originally-flagged open item is now either resolved (ADR-001 through ADR-004, plus the domain-model additions for Exercise ownership/hierarchy, Set, Enrichment promotion, and Media Resource) or explicitly deferred as a deliberate scope choice (body metrics/goals, units/localization, notifications, monetization — see `../../scratchpad/open-questions/iteration-1.md`). There is no outstanding blocking question from Iteration 1; the next iteration is free to revisit a deferred item or move toward implementation scaffolding.

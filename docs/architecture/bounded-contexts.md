@@ -11,6 +11,7 @@ Owns the Exercise concept: definition, attributes (name, description, instructio
 - **Candidate aggregate**: `Exercise` (aggregate root). Equipment/Tags are likely value objects or references within it at this stage — not enough is known yet to justify their own aggregates (see Analyst's open item on whether Equipment needs independent identity).
 - **Ownership (decided)**: an Exercise is either part of the shared/curated library (visible to all users) or a private Exercise owned by one user (visible only to them). Promotion from private to shared is deferred.
 - **Hierarchy (decided)**: an Exercise may reference a parent Exercise (generalization/specialization), letting variants like "Barbell Bench Press" relate back to a general "Bench Press."
+- **Media (decided)**: an Exercise may have attached Media Resources (uploaded file or external link) for instructional purposes.
 - Explicitly does **not** own enrichment content (see Context 5).
 
 ### 2. Training Planning
@@ -25,19 +26,23 @@ Owns Workout (exercises + intended parameters) and Routine (arrangement of Worko
 Owns Workout Session: the record of actual performance. Kept separate from Training Planning because `CLAUDE.md` is explicit that planned and actual execution are structurally distinct, and because this context has different consistency needs (append-mostly event-like data vs. editable plan templates).
 
 - **Candidate aggregate**: `WorkoutSession` (root; contains actual per-set results). **Decided ([ADR-002](adr/ADR-002-workout-versioning-and-session-snapshot.md))**: the session references a specific immutable Workout Version, pinned at the moment the session starts — resolving the "Routine/Workout changed after the fact" ambiguity by construction.
+- **Offline capability (decided, [ADR-003](adr/ADR-003-offline-workout-session-logging.md))**: this is the one context required to tolerate offline writes — session data is cached client-side during training and synced once connectivity returns.
+- **Consistency model (decided, [ADR-004](adr/ADR-004-progress-tracking-not-retroactively-recomputed.md))**: a session can be edited/deleted after completion, but doing so does not retroactively recompute Progress Analytics values already derived from it (see Context 4).
+- May have attached Media Resources (e.g. a video of the user's own performance).
 
 ### 4. Progress Analytics
 
 Owns Progress Tracking: trends, PRs, training volume, consistency — derived from Training Execution history (and potentially future body-metrics data, per Analyst open items).
 
 - Likely **not** an aggregate-owning context at all in the traditional sense — more a read/analysis model over Context 3's data. Whether it needs its own persistence (a materialized view) or can be computed on demand is an implementation question, not a boundary question, and is deferred.
+- **Consistency model (decided, [ADR-004](adr/ADR-004-progress-tracking-not-retroactively-recomputed.md))**: computed values are durable facts, not live-recalculated views — they don't change retroactively when a source Workout Session is later edited or deleted.
 
 ### 5. AI Enrichment
 
 Owns the enrichment workflow for Exercises (muscle groups, movement pattern, progressions/regressions, alternatives, common mistakes, safety notes) via an external/AI intelligence capability. Kept as its own context because `CLAUDE.md` explicitly mandates separation from the core domain.
 
 - Depends on Context 1 (needs to know which Exercises exist) but Context 1 should not depend on it — the Exercise Library must remain coherent with zero enrichment data present.
-- **Open**: whether enrichment output is auto-merged into what a user sees on an Exercise, or held as a separate, clearly-labeled suggestion pending acceptance (Analyst open item).
+- **Trust model (decided)**: enrichment output is held as a separate, clearly-labeled suggestion, never auto-merged. A promotion mechanism lets a user explicitly accept a suggestion into the Exercise's standard data (see `../product/domain-model.md` → Enrichment).
 
 ### 6. Identity (confirmed, deliberately minimal — [ADR-001](adr/ADR-001-user-model-iteration-1.md))
 

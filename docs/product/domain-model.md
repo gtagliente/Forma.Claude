@@ -8,7 +8,7 @@ _Analyst output. Business language only — no persistence, API, or service-boun
 
 A reusable definition of a training movement. Not tied to any one workout.
 
-- Attributes: name, description, execution instructions, required equipment, media resources, tags, difficulty.
+- Attributes: name, description, execution instructions, required equipment, media resources (see **Media Resource**, below), tags, difficulty.
 - Enrichment (see below) may add: muscle groups, movement pattern, difficulty classification, progressions, regressions, alternative exercises, common mistakes, safety recommendations.
 - **Ownership (decided)**: both a centralized/shared Exercise library and individually user-defined private Exercises exist. A private Exercise is visible only to the user who defined it. A mechanism for a user to promote a private Exercise into the shared library is deliberately deferred to a future iteration — not part of this scope.
 - **Hierarchy (decided)**: an Exercise may declare a **parent** Exercise, forming a generalization/specialization relationship — e.g. "Bench Press" as a general parent, with "Barbell Bench Press" and "Dumbbell Bench Press" as specializations (children). This resolves the earlier open question on exercise variation/parameterization: variants are modeled as related Exercises via this hierarchy, not as one Exercise with an equipment parameter. Cross-visibility interaction (can a private Exercise specialize a shared one, or vice versa) is not yet specified — flagged for a future iteration.
@@ -34,7 +34,10 @@ Organizes Workouts over time — which workouts happen, when, and how often (e.g
 The record of an actual performance of a Workout by a user. `CLAUDE.md` is explicit that **planned execution and actual execution must be structurally distinct** — a session doesn't just "check off" a workout, it records its own independent set-by-set data (reps, weight actually done), which may differ from the plan.
 
 - **Snapshot semantics (decided, [ADR-002](../architecture/adr/ADR-002-workout-versioning-and-session-snapshot.md))**: when a session starts, it pins the specific Workout **version** current at that moment. That reference never changes afterward, even if the Workout is edited later — so a session's meaning is fixed the instant it begins, independent of both future Workout edits and the Routine's live reference.
-- **Open**: can a session happen without being tied to a Workout/Routine at all (an ad hoc/freestyle session)? Can a session be partially completed? Can it be edited after the fact, and if so, does that affect Progress Tracking that already consumed it?
+- **Offline logging (decided, [ADR-003](../architecture/adr/ADR-003-offline-workout-session-logging.md))**: while training, set-by-set data is cached locally on the client and synced to the server once connectivity returns — the one area of Forma required to tolerate offline use.
+- **Historical mutability (decided, [ADR-004](../architecture/adr/ADR-004-progress-tracking-not-retroactively-recomputed.md))**: a completed session can be edited or deleted after the fact. Doing so does **not** retroactively recompute Progress Tracking values already derived from it — only future computations reflect the change.
+- Can carry attached **Media Resource**s (e.g. a video of the user's own performance) — see below.
+- **Open**: can a session happen without being tied to a Workout/Routine at all (an ad hoc/freestyle session)? Can a session be partially completed?
 
 ### Progress Tracking
 
@@ -42,6 +45,7 @@ Derived from the accumulation of Workout Sessions over time. Explicitly a future
 
 - Not itself a data-entry concept — it's a *read model* / analysis over Workout Sessions (and possibly body metrics — see open items).
 - `CLAUDE.md` states this must influence current design even pre-MVP: whatever shape Workout Session data takes needs to support these future computations without redesign.
+- **Consistency model (decided, [ADR-004](../architecture/adr/ADR-004-progress-tracking-not-retroactively-recomputed.md))**: a computed value (PR, volume, trend) is a durable fact once produced, not a live-recalculated view — editing/deleting the session(s) it came from does not change it retroactively.
 
 ### Set
 
@@ -54,6 +58,13 @@ One discrete unit of work within an exercise's performance — a given number of
 `CLAUDE.md` mandates enrichment stay separated from the core domain — confirmed: enrichment content is held as a distinct, clearly-labeled layer, never auto-merged into what defines an Exercise.
 
 - **New requirement (decided)**: the application needs a **promotion mechanism** — a way for a user to review a specific AI-sourced suggestion and explicitly accept it, at which point it becomes part of the Exercise's standard/definitive data rather than a labeled suggestion. Until promoted, enrichment content stays visibly separate. This is a product/UX requirement for a future iteration, not a change to the core Exercise shape.
+
+### Media Resource
+
+A photo or video, either uploaded by the user or an external link (e.g. to a third-party instructional video). Resolves the earlier open item on Exercise media handling.
+
+- **Decided**: attachable to two things — an **Exercise** (instructional/learning material) and a **Workout Session** (e.g. a video the user recorded of themselves performing that session). Not attachable to Workout or Routine.
+- Capture/storage mechanics (upload limits, hosting, thumbnailing) are implementation detail, not addressed here.
 
 ## Concepts implied but not yet defined by `CLAUDE.md`
 
@@ -71,7 +82,9 @@ Exercise  ──(parent of, generalization/specialization)───────�
 Workout   ──(referenced by, N:M, always latest version — ADR-002)───▶  Routine
 Workout   ──(pins the version current at start — ADR-002)───────────▶  Workout Session
 Routine   ──(schedules occurrences of)───────────────────────────────▶ Workout Session  (open: direct, or always via Workout?)
-Workout Session ──(aggregated into)─────────────────────────────────▶ Progress Tracking
+Workout Session ──(aggregated into, computed once — ADR-004)────────▶ Progress Tracking
+Exercise        ──(illustrated by)───────────────────────────────────▶ Media Resource
+Workout Session ──(documented by)────────────────────────────────────▶ Media Resource
 ```
 
 Note the Workout↔Workout-Session relationship still needs clarification on one point: does a session always trace back to a specific Workout (even if performed "off script"), or can it exist independently? The *version-pinning* mechanics of that reference, however, are settled — see [ADR-002](../architecture/adr/ADR-002-workout-versioning-and-session-snapshot.md).
