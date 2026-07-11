@@ -20,4 +20,6 @@ Defines the AI agents that operate on this project's knowledge base: their respo
 
 ## Current state
 
-Three roles defined: Analyst, Architect, Challenger — matching the iterative process described in `CLAUDE.md`. A fourth role (`development-agent-context.md`, for implementation work) is referenced in `CLAUDE.md`'s target structure but intentionally not created yet — no engineering conventions exist for it to follow.
+Three roles defined: Analyst, Architect, Challenger — matching the iterative process described in `CLAUDE.md`. A fourth role (`development-agent-context.md`, for implementation work) is referenced in `CLAUDE.md`'s target structure but intentionally not created yet — no engineering conventions exist for it to follow *here*; implementation work itself now happens in each service's own repo (e.g. `Forma.Exercise`), which defines its own local pipeline of roles (Service Analyst, Service Architect, Backend Developer) in its own `docs/agents/`.
+
+The Architect's scope has grown beyond the original one-time analysis phase: now that service repos exist and are being built, it also performs an ongoing **cross-service change review** — the final gate every service-local pipeline hands off to before merging. See `architect-context.md`.

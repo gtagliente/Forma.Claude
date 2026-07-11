@@ -10,8 +10,10 @@ Owns the Exercise Library: Exercise (shared/curated + private per-user, visibili
 
 ## Status
 
-Placeholder only. `domain.md`, `architecture.md`, `api-contracts.md`, `decisions/`, `open-questions.md` are not populated yet — pending the deferred integration-pattern and technology-stack decisions (see `../README.md`).
+This file stays a pointer/summary — the real, actively-maintained knowledge base for this service now lives in its own repository (see `RepositoryPath`, below). `domain.md`, `architecture.md`, `api-contracts.md`, `decisions/`, `open-questions.md` are intentionally not populated here; their equivalents live there instead (`docs/product/domain-slice.md`, `docs/architecture/`, `docs/agents/`, etc.).
 
 ## RepositoryPath
 
 ../../../Forma.Exercise
+
+See `Forma.Exercise/CLAUDE.md` for that repo's own entry point — it implements this service, carries its own scoped `docs/` (domain slice, architecture, engineering, agents pipeline, features, branches), and is where actual development happens.
