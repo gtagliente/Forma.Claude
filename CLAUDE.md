@@ -377,144 +377,53 @@ Future agents should use repository knowledge instead of relying only on previou
 
 ---
 
-# Future Documentation Structure
+# Documentation Structure
 
-The project knowledge will be progressively organized into a hierarchical context structure.
+Knowledge here is kept deliberately flat. Per-service, per-feature, and per-branch
+implementation detail lives with the code that implements it — in that service's own
+repo (e.g. `Forma.Exercise`, `Forma.Resource`) — not mirrored here. This repo only
+holds knowledge that's genuinely global to the whole product/system:
 
-The objective is to support:
-
-- multiple services;
-- multiple technologies;
-- multiple AI agents;
-- parallel development branches;
-- independent service evolution.
-
-Knowledge must be stored at the correct scope.
-
-High-level decisions belong to the system context.
-
-Implementation decisions belong to the specific service context.
-
-Feature-specific decisions belong to the feature context.
-
-Branch-specific temporary decisions belong to the branch context.
-
-
+```
 Forma/
 
 docs/
 │
 ├── README.md
 │
-├── product/
-│   ├── vision.md
-│   ├── requirements-and-open-items.md
+├── product/                               product vision, domain model, glossary,
+│   ├── vision.md                          requirements — the shared domain
+│   ├── requirements-and-open-items.md     understanding, in business language.
 │   ├── domain-model.md
 │   └── glossary.md
 │
-├── architecture/
-│   ├── architecture-approach.md
-│   ├── bounded-contexts.md
-│   ├── context-map.md
-│   ├── integration-patterns.md
-│   └── adr/                              (index: unbounded — one ADR per cross-cutting decision)
+├── architecture/                          system-wide architecture: options
+│   ├── architecture-approach.md           considered, bounded contexts, the
+│   ├── bounded-contexts.md                context map, integration patterns
+│   ├── context-map.md                     between services — plus the durable
+│   ├── integration-patterns.md            decision log:
+│   └── adr/                               (index: unbounded — one ADR per decision)
 │       ├── README.md
-│       ├── ADR-001-user-model-iteration-1.md
-│       ├── ADR-002-workout-versioning-and-session-snapshot.md
-│       ├── ADR-003-offline-workout-session-logging.md
-│       ├── ADR-004-progress-tracking-not-retroactively-recomputed.md
-│       ├── ADR-005-microservices-architecture.md
-│       └── ADR-006-cross-service-reference-integrity.md
+│       └── ADR-NNN-short-name.md
 │
-├── engineering/
-│   ├── coding-standards.md
-│   ├── git-workflow.md
-│   ├── testing-strategy.md
-│   └── devops.md
-│
-├── features/                             (index: unbounded — one folder per identified feature)
-│   ├── README.md
-│   └── FT-NNN-short-name/
-│       ├── README.md
-│       ├── requirements.md
-│       ├── decisions/
-│       └── notes.md
-│
-├── branches/                             (index: unbounded — one folder per long-lived branch)
-│   ├── README.md
-│   └── <branch-name>/
-│       ├── objectives.md
-│       ├── impacted-services.md
-│       ├── decisions/                    (index only if it grows past a couple of entries)
-│       └── pending-items.md
-│
-└── services/                             (index: unbounded — one folder per service)
-    ├── README.md
-    ├── service-map.md
-    ├── dependencies.md
-    │
-    ├── identity-service/                 (bounded context — ADR-005)
-    │   ├── README.md
-    │   ├── domain.md
-    │   ├── architecture.md
-    │   ├── api-contracts.md
-    │   ├── decisions/                    (index only if it grows past a couple of entries)
-    │   └── open-questions.md
-    │
-    ├── exercise-service/                 (bounded context — ADR-005)
-    │   └── (same shape as identity-service/)
-    │
-    ├── training-planning-service/        (bounded context — ADR-005)
-    │   └── (same shape as identity-service/)
-    │
-    ├── training-execution-service/       (bounded context — ADR-005)
-    │   └── (same shape as identity-service/)
-    │
-    └── web-client/                       (consumer, not a bounded context — see its README.md)
-        ├── README.md
-        └── open-questions.md
-            (no domain.md/architecture.md — owns no domain data)
+└── engineering/
+    ├── coding-standards.md
+    ├── git-workflow.md
+    ├── testing-strategy.md
+    └── devops.md
 
 .claude/agents/ (repo root, not under docs/) — live Claude Code subagents (analyst,
 architect, challenger), not markdown docs.
+```
 
-Fixed-shape folders above (README/domain/architecture/api-contracts/open-questions) do
-NOT get a per-instance index — that shape is documented once, here and in
-services/README.md, not repeated per service. Only folders whose item count is
-unbounded (services/, adr/, features/, branches/, and any decisions/ that grows) carry
-an index README listing their contents. Don't pre-create a file before it has real
-content — e.g. api-contracts.md/decisions/ stay absent until a service actually has a
-contract or a local decision to record.
+ADRs are the single mechanism for recording a decision. Keep each one short — context,
+decision, alternatives considered, consequences, nothing more. A decision that's local
+and reversible (scoped to one service, one feature) doesn't need a doc here at all: the
+code, the commit message, and that service's own PR description are enough. Only write
+an ADR when the decision is costly to reverse or crosses a service/API/security/
+deployment boundary — see `docs/architecture/adr/README.md` for the exact bar.
 
-
-# Context Promotion Rules
-
-Knowledge must move upward only when it becomes relevant outside its original scope.
-
-Example:
-
-A decision inside:
-
-services/exercise-service/decisions/
-
-remains local to the service.
-
-If the decision impacts:
-
-- other services;
-- APIs;
-- events;
-- security;
-- deployment;
-- system architecture;
-
-it must be promoted to:
-
-docs/architecture/adr/
-
-Local knowledge stays local.
-
-Global knowledge contains only cross-cutting decisions.
+Don't pre-create a file before it has real content.
 
 # Initial Task
 

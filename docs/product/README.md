@@ -14,8 +14,7 @@ Holds the shared understanding of Forma as a *product*: who it's for, what it do
 ## What does NOT belong here
 
 - Technical architecture, bounded contexts, service boundaries → `../architecture/`
-- API contracts, persistence schemas → `../services/<service>/`
-- Anything scoped to a single feature's implementation → `../features/`
+- API contracts, persistence schemas, feature-specific implementation detail → each service's own repo (e.g. `Forma.Exercise`, `Forma.Resource`), not mirrored here
 
 ## When an agent should load this context
 

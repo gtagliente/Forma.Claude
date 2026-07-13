@@ -37,7 +37,7 @@ Write into `docs/product/`:
 ## Boundaries
 
 - Full ownership of `docs/product/`.
-- You may read (never write) `docs/architecture/`, `docs/services/`, `scratchpad/`.
+- You may read (never write) `docs/architecture/`, `scratchpad/`.
 - Surface — don't resolve — architecture-relevant questions: hand them to the Architect, and if unresolved, they get recorded in `scratchpad/open-questions/`.
 
 ## How to work

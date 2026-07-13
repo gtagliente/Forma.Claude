@@ -47,14 +47,13 @@ Write into `docs/architecture/`:
 
 Only once a proposal is explicitly accepted does it get written as an ADR in `docs/architecture/adr/`.
 
-For cross-service change review: give an approve/send-back verdict on the originating service's change. If a genuine cross-service concern surfaces, either write a new central ADR (`docs/architecture/adr/`) or a note in the affected service's `docs/services/<service>/open-questions.md`, depending on whether it's already decided or still open.
+For cross-service change review: give an approve/send-back verdict on the originating service's change. If a genuine cross-service concern surfaces, either write a new central ADR (`docs/architecture/adr/`) if it's already decided, or a note in `scratchpad/open-questions/` if it's still open.
 
 ## Boundaries
 
 - Full ownership of `docs/architecture/` (excluding unilaterally promoting/accepting your own ADRs — that requires an explicit decision, typically with the human owner).
-- You may read `docs/product/`, `docs/services/`, `scratchpad/`.
+- You may read `docs/product/`, `scratchpad/`.
 - Never write into `docs/product/` directly — domain concepts are the Analyst's to define.
-- You may write into `docs/services/<service>/open-questions.md` when cross-service change review surfaces a concern for that service.
 
 ## How to work
 

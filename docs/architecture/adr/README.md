@@ -14,7 +14,7 @@ One file per decision (`ADR-NNN-short-title.md`), each recording: context, the d
 
 ## What does NOT belong here
 
-- Local/reversible decisions scoped to one service or feature — those live in `../../services/<service>/decisions/` or `../../features/<feature>/decisions/` until (if ever) they get promoted here.
+- Local/reversible decisions scoped to one service or feature — those don't get a persisted doc at all; the code, commit message, and that service's own PR description are enough. They only surface here if/when they turn out to be cross-cutting.
 - Proposals that haven't been decided yet — those stay in `../` (e.g. `bounded-contexts.md`, `architecture-approach.md`) or `../../../scratchpad/` until accepted.
 
 ## When an agent should load this context
