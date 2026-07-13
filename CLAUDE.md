@@ -408,19 +408,23 @@ docs/
 │
 ├── product/
 │   ├── vision.md
-│   ├── requirements.md
+│   ├── requirements-and-open-items.md
 │   ├── domain-model.md
 │   └── glossary.md
 │
 ├── architecture/
-│   ├── system-context.md
-│   ├── service-map.md
+│   ├── architecture-approach.md
+│   ├── bounded-contexts.md
 │   ├── context-map.md
 │   ├── integration-patterns.md
-│   └── adr/
-│       ├── ADR-001-system-architecture.md
-│       ├── ADR-002-service-boundaries.md
-│       └── ADR-003-event-strategy.md
+│   └── adr/                              (index: unbounded — one ADR per cross-cutting decision)
+│       ├── README.md
+│       ├── ADR-001-user-model-iteration-1.md
+│       ├── ADR-002-workout-versioning-and-session-snapshot.md
+│       ├── ADR-003-offline-workout-session-logging.md
+│       ├── ADR-004-progress-tracking-not-retroactively-recomputed.md
+│       ├── ADR-005-microservices-architecture.md
+│       └── ADR-006-cross-service-reference-integrity.md
 │
 ├── engineering/
 │   ├── coding-standards.md
@@ -428,93 +432,59 @@ docs/
 │   ├── testing-strategy.md
 │   └── devops.md
 │
-├── agents/
-│   ├── analyst-context.md
-│   ├── architect-context.md
-│   ├── challenger-context.md
-│   └── development-agent-context.md
-│
-├── features/
-│   │
-│   ├── FT-001-exercise-management/
-│   │   ├── README.md
-│   │   ├── requirements.md
-│   │   ├── decisions/
-│   │   └── notes.md
-│   │
-│   ├── FT-002-workout-builder/
-│   │   ├── README.md
-│   │   ├── requirements.md
-│   │   ├── decisions/
-│   │   └── notes.md
-│   │
-│   └── FT-003-workout-tracking/
+├── features/                             (index: unbounded — one folder per identified feature)
+│   ├── README.md
+│   └── FT-NNN-short-name/
 │       ├── README.md
 │       ├── requirements.md
 │       ├── decisions/
 │       └── notes.md
 │
-├── branches/
-│   │
-│   ├── main/
-│   │   └── context.md
-│   │
-│   ├── develop/
-│   │   └── context.md
-│   │
-│   └── feature-workout-builder/
+├── branches/                             (index: unbounded — one folder per long-lived branch)
+│   ├── README.md
+│   └── <branch-name>/
 │       ├── objectives.md
 │       ├── impacted-services.md
-│       ├── decisions/
+│       ├── decisions/                    (index only if it grows past a couple of entries)
 │       └── pending-items.md
 │
-└── services/
-    │
+└── services/                             (index: unbounded — one folder per service)
     ├── README.md
     ├── service-map.md
     ├── dependencies.md
     │
-    ├── identity-service/
+    ├── identity-service/                 (bounded context — ADR-005)
     │   ├── README.md
-    │   ├── context.md
-    │   ├── architecture.md
-    │   ├── api-contracts.md
-    │   ├── decisions/
-    │   │   ├── ADR-001-authentication.md
-    │   │   └── ADR-002-user-storage.md
-    │   └── open-questions.md
-    │
-    ├── exercise-service/
-    │   ├── README.md
-    │   ├── context.md
     │   ├── domain.md
     │   ├── architecture.md
     │   ├── api-contracts.md
-    │   ├── decisions/
+    │   ├── decisions/                    (index only if it grows past a couple of entries)
     │   └── open-questions.md
     │
-    ├── workout-service/
-    │   ├── README.md
-    │   ├── context.md
-    │   ├── domain.md
-    │   ├── architecture.md
-    │   ├── api-contracts.md
-    │   ├── decisions/
-    │   └── open-questions.md
+    ├── exercise-service/                 (bounded context — ADR-005)
+    │   └── (same shape as identity-service/)
     │
-    ├── routine-service/
-    │   ├── README.md
-    │   ├── context.md
-    │   ├── domain.md
-    │   ├── architecture.md
-    │   └── decisions/
+    ├── training-planning-service/        (bounded context — ADR-005)
+    │   └── (same shape as identity-service/)
     │
-    └── ai-enrichment-service/
+    ├── training-execution-service/       (bounded context — ADR-005)
+    │   └── (same shape as identity-service/)
+    │
+    └── web-client/                       (consumer, not a bounded context — see its README.md)
         ├── README.md
-        ├── context.md
-        ├── architecture.md
-        ├── integrations.md
-        └── decisions/
+        └── open-questions.md
+            (no domain.md/architecture.md — owns no domain data)
+
+.claude/agents/ (repo root, not under docs/) — live Claude Code subagents (analyst,
+architect, challenger), not markdown docs.
+
+Fixed-shape folders above (README/domain/architecture/api-contracts/open-questions) do
+NOT get a per-instance index — that shape is documented once, here and in
+services/README.md, not repeated per service. Only folders whose item count is
+unbounded (services/, adr/, features/, branches/, and any decisions/ that grows) carry
+an index README listing their contents. Don't pre-create a file before it has real
+content — e.g. api-contracts.md/decisions/ stay absent until a service actually has a
+contract or a local decision to record.
 
 
 # Context Promotion Rules
@@ -525,7 +495,7 @@ Example:
 
 A decision inside:
 
-services/workout-service/decisions/
+services/exercise-service/decisions/
 
 remains local to the service.
 

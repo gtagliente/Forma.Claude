@@ -12,6 +12,7 @@ A reusable definition of a training movement. Not tied to any one workout.
 - Enrichment (see below) may add: muscle groups, movement pattern, difficulty classification, progressions, regressions, alternative exercises, common mistakes, safety recommendations.
 - **Ownership (decided)**: both a centralized/shared Exercise library and individually user-defined private Exercises exist. A private Exercise is visible only to the user who defined it. A mechanism for a user to promote a private Exercise into the shared library is deliberately deferred to a future iteration — not part of this scope.
 - **Hierarchy (decided)**: an Exercise may declare a **parent** Exercise, forming a generalization/specialization relationship — e.g. "Bench Press" as a general parent, with "Barbell Bench Press" and "Dumbbell Bench Press" as specializations (children). This resolves the earlier open question on exercise variation/parameterization: variants are modeled as related Exercises via this hierarchy, not as one Exercise with an equipment parameter. Cross-visibility interaction (can a private Exercise specialize a shared one, or vice versa) is not yet specified — flagged for a future iteration.
+- **Deletion while referenced by a Workout (decided, iteration 2)**: an Exercise cannot be deleted while at least one Workout still references it — the same rule for both a shared and a private Exercise. See `requirements-and-open-items.md` → "Cross-context reference integrity" for the reasoning and the ownership-model nuance this surfaces (a private Exercise's referencing Workouts always belong to the deleting user; a shared Exercise's may not).
 
 ### Workout
 
@@ -19,6 +20,7 @@ A reusable training plan composed of exercises, describing *intended* structure:
 
 - A Workout is a template — it does not itself represent a specific occurrence in time.
 - **Versioned (decided, [ADR-002](../architecture/adr/ADR-002-workout-versioning-and-session-snapshot.md))**: editing a Workout's structure or parameters creates a new immutable version rather than mutating the existing one in place. Prior versions remain intact.
+- **Exercise reference validity (decided, iteration 2)**: a Workout references an Exercise by identity only (no duplication). Creation/editing should make a best-effort check that a referenced Exercise exists, but this is a UX safeguard, not a hard precondition for saving. Wherever a Workout's Exercise reference no longer resolves (a **Dangling Reference** — see glossary), it must be presented clearly as unavailable/removed, never silently dropped or erroring. See `requirements-and-open-items.md` → "Cross-context reference integrity."
 - **Open**: can the same Exercise appear more than once in a Workout (e.g. warm-up set at lower weight, then working sets)? Is rest time per-exercise or per-set?
 
 ### Routine

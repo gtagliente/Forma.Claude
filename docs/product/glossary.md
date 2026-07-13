@@ -25,6 +25,7 @@ Canonical definitions, so every agent and document uses these words consistently
 | **Private Exercise** | An Exercise defined by an individual user, visible only to that user. A future iteration may add a way to promote a Private Exercise into the Shared library — not built yet. |
 | **Parent Exercise / Specialization** | Exercises may relate via generalization/specialization: a more general Exercise (parent, e.g. "Bench Press") can have more specific variant Exercises (children/specializations, e.g. "Barbell Bench Press," "Dumbbell Bench Press"). |
 | **User / Athlete** | The person performing training and whose data (exercises used, sessions, progress) is being managed. For this iteration, confirmed as a single "normal user" persona with no roles or delegation — see [ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md). |
+| **Dangling Reference** | A reference from one concept to another (e.g. a Workout's reference to an Exercise) that no longer resolves because the referenced item was deleted. The referencing concept must present it clearly as unavailable/removed wherever shown, never silently drop it or error. See `requirements-and-open-items.md` → "Cross-context reference integrity." |
 
 ## Explicitly out of scope this iteration
 

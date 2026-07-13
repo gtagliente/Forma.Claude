@@ -1,0 +1,159 @@
+# Forma — Integration Patterns (Iteration 2)
+
+_Architect output. **Accepted** 2026-07-12, following Challenger review (see `adr/ADR-006-cross-service-reference-integrity.md`, `Status: Accepted`). Addresses the follow-up ADR-005 explicitly deferred here: "Inter-service integration pattern (synchronous REST vs. async events vs. both)." The Challenger's one substantive refinement (split Rule 2's fail-closed policy by Exercise ownership) was reviewed and explicitly not adopted at sign-off — uniform fail-closed stands as documented below; see ADR-006's Status section and `../../scratchpad/challenger-review-iteration-2.md` for the full argument if revisited later._
+
+_**Addendum, 2026-07-12 (Accepted, following Challenger review):** the "Client-generation tooling" section, below, is a later addition, resolving one piece of "What's deliberately not decided here"'s transport/technology bullet. The Architect's original pick (Refit + Refitter) was reviewed by the Challenger, who flagged that Refit+Refitter's manual regeneration has no drift-detection mechanism — no equivalent to Kiota's `kiota-lock.json`, which would flag a generated client that's gone stale against its source spec. The human product owner weighed that operational safety net heavier than Refit's marginally better one-method Application-port fit and chose **Kiota** instead, keeping the section's other conclusions (non-binding per-service default, security explicitly deferred) unchanged. See `../../scratchpad/challenger-review-iteration-2.md` for the full argument._
+
+## Trigger and scope
+
+Two concrete, already-built situations both need the same underlying capability — "does the thing this ID points to still exist / is this ID still referenced" — across a service boundary, in **opposite directions** between the same two services:
+
+1. **Workout creation/editing → Exercise existence** (`training-planning-service` calls `exercise-service`). Business rule (Analyst, `../product/requirements-and-open-items.md` → "Cross-context reference integrity", rule 1): **best-effort only** — a UX safeguard, not a hard precondition for saving. A resulting Dangling Reference (see glossary) must degrade gracefully wherever later shown, never silently dropped or a raw error.
+2. **Exercise deletion → Workout reference** (`exercise-service` calls `training-planning-service`). Business rule (Analyst, rule 2): **blocked by default**, identically for shared and private Exercises — extends the same-service "can't delete an Exercise with hierarchy children" precedent (`Forma.Exercise` FT-003) across the service boundary.
+
+This document resolves the mechanism for exactly these two drivers. It does not re-decide the business rules above (Analyst's, not mine to revisit) and does not extend the mechanism to services/relationships that aren't concrete yet (see "What's deliberately not decided here").
+
+## The actual current + near-term dependency graph (not a hypothetical one)
+
+Per the Analyst's assessment (`requirements-and-open-items.md` → "Is this a one-off... or a general shape?"), evaluated as it actually stands today, not as an abstract N-service mesh:
+
+- **Exercise Library ↔ Training Planning** — the two drivers above. This is the only pair with two concrete, already-implemented features depending on it *right now*. It is genuinely bidirectional (a real, if narrow, mesh edge — not just one arrow), but it is exactly **one pair of services**, not several.
+- **Training Planning ↔ Training Execution** — already resolved, not this document's concern. ADR-002/ADR-005 settled this as a **denormalized copy captured at session start**, deliberately exempt from both the existence-check and delete-block concerns (the Analyst's explicit "already-settled carve-out"). `training-execution-service` is still a placeholder (no `domain.md`/`architecture.md` populated yet); exactly *how* it fetches the Workout Version data to copy at session-start is real but not urgent — revisit when that service gets its own central-loop pass. Not decided here.
+- **Workout ↔ Routine deletion** — the Analyst's "imminent" same-shape instance, but it is **intra-service** (both owned by `training-planning-service`). It needs no cross-service integration pattern at all — it's an ordinary in-process repository query, the same shape `training-planning-service` already built for Routine-create's `IWorkoutReferenceChecker` (`../services/training-planning-service/domain.md` → "Now built: Routine create"). Flagged here only to make explicit that it's **out of scope** for this document; nothing about it needs a sync/async/orchestrator decision.
+- **User/`OwnerId` ↔ everything** — the Analyst's "near-certain next occurrence," but `identity-service` is still a placeholder with no real implementation. Speculating about its shape now (star/fan-out from every service into Identity, at far higher call volume than the two current drivers, and with a still-undecided business rule — does account deletion even block the same way Exercise deletion does?) would be designing against a hypothetical, not a real current requirement. Explicitly deferred — see below.
+
+**Conclusion**: the real graph right now is not a dense, growing mesh. It is one bidirectional pair of edges between two services, plus one intra-service instance that doesn't need this pattern at all, plus one already-solved instance, plus one genuinely future instance not yet real enough to design for. This matters directly for the mesh/orchestrator/hybrid question below.
+
+## The question: mesh, orchestrator, or something else
+
+### Option (b) — dedicated orchestration service: rejected
+
+An orchestrator would mediate cross-service existence/reference checks on behalf of the two services that need them. Rejected for this iteration:
+
+- **It owns no domain data.** Every existing/proposed service (`identity-service`, `exercise-service`, `training-planning-service`, `training-execution-service`) maps 1:1 onto a bounded context from `bounded-contexts.md`/`context-map.md` — that mapping *is* the justification ADR-005 relies on for each service's existence. An orchestrator has no bounded context of its own; it would be a purely technical/infrastructural deployable, which fights rather than fits the domain-area-driven reasoning the other four services are justified by.
+- **It doesn't reduce the actual dependency count.** The graph above has exactly one bidirectional pair of edges right now. Routing both through a hub doesn't shrink two edges into fewer — it adds a third deployable and an extra network hop to both calls, for zero reduction in coupling. An orchestrator earns its cost when the graph is genuinely many-to-many (many services each needing to check many others); that is not the current or near-term shape here (see graph above).
+- **No real requirement demands it.** Per `CLAUDE.md`'s "avoid unnecessary complexity" and "every architectural decision must be justified by a real, current requirement" — there is no scale, latency, or fan-out problem today that a hub would solve. This would be premature infrastructure investment of exactly the kind Iteration 1's architecture-approach.md already warned against for microservices generally.
+
+Not rejected forever — if the graph genuinely densifies (several services each needing to check several others, with enough shared cross-cutting logic in the checks themselves to justify centralizing it), revisit then. Nothing here forecloses that.
+
+### Option (a) — direct point-to-point calls: adopted, but governed, not ad hoc
+
+Recommended, with two refinements that keep it from becoming the "uncontrolled growing mesh" the human owner's framing rightly worries about in the abstract:
+
+1. **Every edge gets an explicit, asymmetric contract** (mechanism + failure-mode), derived from the business rule it serves — not one uniform "the integration pattern is X" answer applied identically everywhere. See "Recommendation," below.
+2. **Endpoints are narrow and single-purpose** — each service exposes exactly the minimal read-only query the other side needs (e.g. "do these Exercise IDs exist," "is this Exercise ID referenced by any Workout"), not a general-purpose query API that invites arbitrary future coupling. This keeps each edge cheap and auditable as the graph grows, rather than becoming a de facto shared internal API.
+
+### Option (c) — async events / local read-model caches: deferred, not adopted now
+
+A legitimate future tool (e.g. `exercise-service` publishing `ExerciseCreatedEvent`/`ExerciseDeletedEvent` — which already exist as in-process domain events, per `Forma.Exercise/src/Forma.Domain/Entities/ExerciseAggregate/Events/ExerciseDeletedEvent.cs`, but are consumed only internally today via MediatR, never published externally — to let `training-planning-service` maintain a local, eventually-consistent read model of "known Exercise IDs"). Deliberately **not adopted this iteration**:
+
+- Neither codebase has any cross-service messaging infrastructure today (no message broker, no outbox pattern — confirmed by inspection of `Forma.Exercise`). Standing this up is a real infrastructure investment, not a small addition.
+- It would only pay for itself once there's more than one consumer of the same event stream. Today there's exactly one candidate use (Exercise existence, for `training-planning-service`). The next likely consumer of this pattern is Identity/`OwnerId` fan-out — but `identity-service` isn't real yet (see above). Building shared eventing infrastructure now, ahead of a second real consumer, is exactly the premature complexity `CLAUDE.md` warns against.
+- Critically, it is the **wrong tool for rule 2** regardless of infrastructure cost (see below) — an eventually-consistent cache reintroduces exactly the staleness risk rule 2's "false negative is the dangerous failure mode" cannot tolerate.
+
+Explicitly kept as a candidate for a **future** revisit once (a) `identity-service` is real and its own business rule for account deletion is decided, and (b) there are at least two independent consumers that would benefit from the same event stream — at that point the infrastructure cost is justified by more than a single edge.
+
+## Recommendation
+
+**Direct, synchronous, point-to-point read calls between `exercise-service` and `training-planning-service` — one per direction — each with an explicit failure-mode policy derived from the business rule it serves.** This is the answer to the human owner's question: closest to option (a), deliberately not (b), with the async parts of (c) deferred rather than adopted.
+
+| | Rule 1 — Workout create/edit → Exercise existence | Rule 2 — Exercise delete → Workout reference |
+|---|---|---|
+| **Caller → callee** | `training-planning-service` → `exercise-service` | `exercise-service` → `training-planning-service` |
+| **Business rule** | Best-effort (Analyst rule 1) | Hard block (Analyst rule 2) |
+| **Mechanism** | Synchronous read, inline in the same create/edit request (batch: which of these Exercise IDs currently exist) | Synchronous read, inline in the same delete request (is this Exercise ID referenced by any Workout's **current** version — see open question below) |
+| **On a confirmed negative result** (check ran, and says "doesn't exist" / "is referenced") | Reject the save with a clear message — this is the "reasonable effort... catching the common case early" the Analyst describes | Reject the delete with a clear, actionable message (per Analyst rule 2) |
+| **On check failure/timeout/unreachable** (inconclusive, not a confirmed answer) | **Fail open** — proceed with the save anyway; the reference may end up dangling, which is explicitly acceptable per rule 1 | **Fail closed** — block the delete; do not let an unreachable dependency silently become a false "not referenced" |
+| **Why this failure-mode split** | Rule 1 explicitly tolerates staleness/races — "not something the user's ability to save should hard-depend on." Failing open when the check itself is inconclusive keeps Workout create/edit available even if `exercise-service` is degraded, which is exactly the intended tolerance. | Per the Analyst's own asymmetry: a false negative (says "not referenced" when it is) is the failure the rule exists to prevent — the higher-stakes outcome. A false positive (blocks a delete that should have succeeded) is a mere inconvenience. When the check can't produce a confident answer, treat that as "can't rule out a reference" and block, not as "assume it's fine." |
+| **Timeout guidance** | Short (the check must not materially delay a save the user is actively waiting on) | Can tolerate a longer timeout/retry before giving up and blocking — a slower delete is a much smaller cost than a silently orphaned reference |
+
+Both checks run **inline within the same request-response cycle** that triggers them (not fire-and-forget/async post-hoc) — for rule 1, because immediate feedback is what makes the "cheap and immediate to recover from (just re-pick)" framing in the Analyst's rule actually true; for rule 2, because the block itself only has meaning if it happens before the delete commits.
+
+### Reuse for read-time graceful degradation (rule 1's second half)
+
+Rule 1 also requires that an already-saved Dangling Reference degrade gracefully wherever later shown (viewing/editing a Workout, a Routine referencing it). The same capability `exercise-service` exposes for the create-time check (batch "which of these IDs exist," ideally returning minimal display data too) is the natural mechanism for this — resolved at read time by `training-planning-service`, with the identical fail-open policy: if `exercise-service` is unreachable when rendering, treat unresolved entries as "currently unavailable" rather than erroring, never as a hard read failure. This is not a new mechanism, just the same one applied to reads instead of writes. The specific display semantics (what a Workout view shows for a Dangling Reference) remain a service-loop design detail for `training-planning-service`, not decided further here.
+
+Open question 2 from the Analyst (session-start behavior when a Workout's Exercise reference doesn't resolve) is **not** resolved by this document — it's entangled with `training-execution-service`'s snapshot/denormalization mechanics, and that service doesn't have a central-loop pass yet. Flagged for whenever `training-execution-service`'s `domain.md`/`architecture.md` get populated.
+
+## A new nuance surfaced while designing rule 2's mechanism
+
+Designing the actual "is this Exercise referenced" query surfaced a question the Analyst's business rule doesn't disambiguate: `Workout` is versioned, and old `WorkoutVersion`s remain intact and queryable (ADR-002). If Exercise X was referenced in an old, non-current version but has since been removed from the Workout's current version (via a new version), does that historical reference still count as "referenced" for delete-blocking purposes?
+
+**Provisional default (not a resolution)**: check only the **current** version of each Workout. Rationale: the current version is the live, actively-editable plan; a historical version is frozen record, and viewing it already tolerates Dangling References gracefully under rule 1 the same way any other view does — blocking a delete over a reference nobody can act on anymore would revisit rule 2's own "cheaper path, no new domain concept" reasoning for no clear benefit. This mirrors the "permissive provisional default until decided" pattern already used elsewhere in this project (e.g. `training-planning-service`'s `DayOfWeek?` scheduling placeholder, `exercise-service`'s hierarchy cross-visibility default).
+
+This is flagged, not decided — it has real product meaning (does deleting an Exercise still referenced only by a Workout's *history* feel safe to a user?), so it belongs back with the Analyst/product owner for explicit confirmation, not decided unilaterally here. See `../services/training-planning-service/open-questions.md` (new item) and `../services/exercise-service/open-questions.md`.
+
+## Client-generation tooling for the two ADR-006 endpoint clients
+
+_Added 2026-07-12. **Proposed, pending Challenger review and product-owner sign-off** — not covered by this document's 2026-07-12 Accepted status (see addendum note at the top). Resolves one piece of "What's deliberately not decided here," below: not REST vs. gRPC (see that bullet), but which tool, if any, generates each service's typed HTTP client for calling the other. Triggered by ADR-006 explicitly deferring "Concrete API contracts" and "Transport/technology choice" as implementation detail — this is the next concrete piece of that, now that both services' checker-interface adapter pattern (`IExerciseHierarchyChecker`/`IWorkoutReferenceChecker`) gives a clear seam to slot a client behind._
+
+### Scope
+
+Each ADR-006 direction needs one narrow HTTP call on the calling side:
+
+- `training-planning-service` → `exercise-service`: batch "which of these Exercise IDs currently exist" (Rule 1 — fail-open, short timeout).
+- `exercise-service` → `training-planning-service`: "is this Exercise ID referenced by any Workout's current version" (Rule 2 — fail-closed, longer timeout).
+
+Both services already generate an OpenAPI 3.0.1 document for their own public surface (`Forma.Resource/Forma.Planner/docs/engineering/openapi.json`, and `exercise-service`'s equivalent) — neither yet includes its new ADR-006 endpoint, since those are unbuilt. This section addresses what produces the *calling* side's proxy once each endpoint exists and is reflected in the callee's spec — not the wire contract itself (still "Concrete API contracts," below).
+
+### Requirements this client must satisfy
+
+1. Slot behind an Infrastructure-layer adapter implementing a new Application-layer interface (e.g. `IExerciseExistenceChecker` in `training-planning-service`, an equivalent in `exercise-service`) — mirroring the existing intra-service pattern (`IExerciseHierarchyChecker`, `IWorkoutReferenceChecker`, both Domain-defined contracts implemented by an Infrastructure-layer repository/adapter). No generated client type may appear on a Domain or Application project's public surface.
+2. Compose cleanly with a resilience layer (Polly, via `Microsoft.Extensions.Http.Resilience` on .NET 9) implementing ADR-006's per-direction policy — short-timeout fail-open for Rule 1, longer-timeout fail-closed for Rule 2. The generated client's own job is just the HTTP call; fail-open/fail-closed is a `DelegatingHandler`/resilience-pipeline concern wrapped around it, not something baked into the client.
+3. Fit the `IHttpClientFactory` idiom already used throughout both codebases' `*.Infrastructure` projects.
+4. Have a tractable regeneration/sync story for a two-endpoint surface, without demanding CI investment neither service has built yet.
+
+### Options evaluated
+
+| Option | Ports-and-adapters fit | .NET 9 / maintenance trajectory | Polly composition | Regeneration workflow |
+|---|---|---|---|---|
+| **NSwag** | Generates a full client class per spec; narrow scoping to avoid pulling in the callee's *entire* public surface (not just the one ADR-006 endpoint) needs manual configuration | Long-established, still maintained, but reads as legacy momentum now that Kiota is Microsoft's actively-promoted successor for OpenAPI-driven .NET client gen | `HttpClient`-backed, works via `IHttpClientFactory`, but more setup friction than the factory-first designs below | CLI/MSBuild regen from a checked-in spec; manual or build-time |
+| **Kiota** | Request-builder tree; supports `--include-path` filtering to generate only the one needed operation, which fits ADR-006's "narrow, single-purpose endpoint" philosophy well; slightly more unwrapping than Refit to reach a one-method Application port | Actively developed, Microsoft's current official generator, strong .NET 9 support, best forward-momentum of the four codegen options | Clean, via `IRequestAdapter`'s handler chain plus resilience handlers | CLI regen, with built-in lock-file (`kiota-lock.json`) tracking for incremental regen |
+| **Refit + Refitter** | Refitter's output *is* a plain C# interface — the most direct fit for a one-method Application port; the Infrastructure adapter just injects the interface and translates one call | Refit itself mature and widely adopted, low abandonment risk; Refitter (the OpenAPI→interface generator) is smaller/newer, but its output is plain, hand-maintainable C# if the generator itself stalls — low lock-in | Textbook: `AddRefitClient<T>().AddResilienceHandler(...)` is the documented first-class pattern for Polly v8 on a Refit-typed, factory-registered client | CLI/MSBuild regen from a checked-in spec; manual, low-ceremony at a two-endpoint scale |
+| **OpenAPI Generator** | Generic multi-language client shape, less idiomatic-.NET by default | Actively maintained, but its multi-language generality is unneeded here (no non-.NET consumer exists), and it requires a Java runtime in an otherwise pure-.NET toolchain | Possible, not first-class for .NET/`IHttpClientFactory` idioms | CLI regen, heavier toolchain dependency |
+| **Hand-written, no generator** | Perfect fit by construction — write exactly the adapter's one method | No generator/tool risk at all | Identical to any hand-rolled `HttpClient`-based typed client, registered the same way | None to run — but also no drift detection against the callee's actual published contract |
+
+### Recommendation (default, not mandate — see below)
+
+**Kiota, generating each service's client from the callee's checked-in OpenAPI document, with `--include-path` scoped to just the one ADR-006 operation needed, registered via `IHttpClientFactory` with a resilience handler (`Microsoft.Extensions.Http.Resilience`, Polly v8) implementing each direction's timeout/fail-open/fail-closed policy.**
+
+Rationale (revised 2026-07-12 at product-owner sign-off — see addendum note at the top of this document): the deciding factor is Kiota's built-in `kiota-lock.json`, which records the source spec's state at generation time and flags when a generated client has drifted stale against it. Refit + Refitter (the Architect's original pick, still a fully valid alternative — see below) has no equivalent: a forgotten manual regen after the callee's contract changes would silently drift, indistinguishable from deliberate hand-maintenance. At a two-endpoint surface with no CI-gated regeneration step planned, that self-detecting safety net was judged worth more than Refitter's marginally closer fit to a one-method Application port. Kiota's request-builder output needs slightly more unwrapping to reach `IExerciseExistenceChecker`-shaped interfaces than Refitter's plain-interface output, but that's a small, one-time adapter-layer cost, not a recurring one.
+
+**Alternative: Refit + Refitter** — still a legitimate per-service choice (this remains a non-binding default, not a mandate — see below), and the better pick specifically if a service wants the closest possible match to a one-method Application port and is comfortable owning regeneration-drift risk manually (e.g. via a short checklist item in that service's own contract-change process rather than tooling).
+
+**Rejected as the default** (not as invalid choices — see "Central mandate or per-service default?" below): NSwag (monolithic client fights the narrow-endpoint philosophy without deliberate manual scoping; legacy momentum relative to Kiota); OpenAPI Generator (Java-toolchain dependency with no offsetting benefit for a single-language .NET consumer); hand-written-with-no-generator (a genuinely honest alternative at this surface size — see next section — but Kiota costs almost nothing over hand-writing while guaranteeing the client matches the callee's actual published contract from day one, and self-flags drift, so it's the better starting default).
+
+### Central mandate or per-service default?
+
+**Not a central mandate.** Recorded here as a shared, non-binding *default starting recommendation* — a service's own local pipeline (Service Architect) may pick differently, including hand-writing with no generator at all, without needing central re-approval, as long as whatever it picks still satisfies the four requirements above (ports-and-adapters fit, Polly composability, `IHttpClientFactory` idiom, a workable regen story).
+
+Why this shouldn't be a hard rule:
+
+- **The choice is invisible to the side being called.** Both services already agree, via ADR-006 and each other's checked-in OpenAPI document, on the actual wire contract each endpoint exposes. What tool the *caller* uses to produce its own local proxy for that contract has no effect on the callee — no shared build artifact, no shared package reference, no cross-repo dependency of any kind. This is one level more local than "Concrete API contracts," which this document and ADR-006 already both treat as service-loop, not central-loop, detail.
+- **No real, current requirement forces convergence.** Per `CLAUDE.md`'s "every architectural decision must be justified by a real, current requirement" — there is no shared library, shared team, or observed inconsistency cost today that a central rule would fix. The only real cost of *not* deciding centrally is each Service Architect potentially re-deriving this same comparison independently — a recorded default (this section) already solves that without needing to become a binding rule.
+- **Consistent with this project's existing "provisional default, not a resolution" precedent** — the same rhetorical move already used for `training-planning-service`'s `DayOfWeek?` scheduling placeholder, `exercise-service`'s hierarchy cross-visibility default, and this document's own current-version-only default for Rule 2's "referenced" question (above). None of those were promoted to hard central rules either; they're starting points, explicitly open to local revision with a recorded reason.
+
+A service that departs from this default should note the choice and its reason briefly in its own local decision record (e.g. `Forma.Exercise/docs/architecture/adr/` or `Forma.Planner/docs/architecture/`) — not because central sign-off is required, but so a future agent working in that service understands it was a deliberate departure, not an oversight.
+
+### Security note — deliberately out of scope here, a real known gap
+
+Neither direction's client includes any authentication or authorization. This is a **deliberate deferral by the human product owner**, not an oversight: real service-to-service authentication (most likely JWT-based) is explicitly parked until `identity-service` moves past placeholder status and that design can be done properly against a real issuer. Until then, **both ADR-006 endpoints are unauthenticated, network-reachable calls between two services with no verification of caller identity** — stated explicitly here so this silence is never later mistaken for "already solved." Whoever eventually runs `identity-service`'s first central-loop pass should treat retrofitting auth onto these two existing call sites as an expected, known follow-up, not a new discovery.
+
+## What's deliberately not decided here
+
+- **Concrete API contracts** (exact routes, payload shapes, batch vs. single-ID) — service-loop/API-contract-design detail, per the existing deferral pattern (`../services/exercise-service/README.md`, `../services/training-planning-service/README.md`). This document fixes the *mechanism and failure policy*, not the wire format.
+- **Identity/`OwnerId` fan-out pattern** — `identity-service` isn't real yet, and the business rule for account deletion (does it block the same way Exercise deletion does, or something else?) isn't decided. Revisit once both are true. The async/local-read-model option deferred above is the most likely fit *if* fan-out volume turns out to justify it, precisely because a "does this User exist" check would be called far more often (every create, in every service) than either of today's two drivers — but that's a prediction to validate later, not a decision to make now.
+- **Training Planning ↔ Training Execution session-start data fetch mechanism** — already governed by ADR-002/ADR-005's denormalized-copy answer for *what* gets stored; *how* `training-execution-service` fetches it at session-start is real but belongs to that service's own future central-loop pass, not invented here ahead of that service having any domain/architecture documentation at all.
+- ~~**Transport/technology**~~ (REST vs. gRPC, etc.) — **Partially resolved as a default, not a mandate** (2026-07-12, Accepted — see "Client-generation tooling," above): REST/HTTP+JSON is the de facto transport already, via each service's own OpenAPI-documented public surface — not revisited as a live option here, since neither codebase has any gRPC tooling and no requirement demands introducing it for a two-endpoint need. The specific client-generation *tool* (Kiota, with Refit + Refitter recorded as a valid alternative) is recorded as a non-binding shared default, not a central mandate — see above.
+
+## References
+
+- `../product/requirements-and-open-items.md` → "Cross-context reference integrity (Iteration 2)"
+- `../product/domain-model.md` → Exercise, Workout
+- `../product/glossary.md` → "Dangling Reference"
+- `adr/ADR-005-microservices-architecture.md` (the deferral this document resolves)
+- `adr/ADR-006-cross-service-reference-integrity.md` (candidate decision record, drafted alongside this document)
+- `../services/exercise-service/open-questions.md`, `../services/training-planning-service/open-questions.md`
+- `Forma.Exercise/docs/features/FT-003-update-delete.md` → "Central Architect Gate" (where this was first flagged as a real forward risk)
+- `Forma.Exercise/src/Forma.Domain/Entities/ExerciseAggregate/Contracts/IExerciseHierarchyChecker.cs`, `Forma.Resource/Forma.Planner/src/Forma.Planner.Domain/Entities/RoutineAggregate/Contracts/IWorkoutReferenceChecker.cs` — the existing intra-service checker-interface/adapter pattern the "Client-generation tooling" section's Application-layer ports (`IExerciseExistenceChecker` etc.) are modeled on
+- `Forma.Resource/Forma.Planner/docs/engineering/openapi.json` — `training-planning-service`'s current generated OpenAPI surface (pre-ADR-006 endpoint)

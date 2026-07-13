@@ -9,7 +9,7 @@ Four service placeholders bootstrapped under `../../services/` ([ADR-005](../../
 - **training-planning-service** — Workout (versioned, [ADR-002](../../architecture/adr/ADR-002-workout-versioning-and-session-snapshot.md)), Routine.
 - **training-execution-service** — Workout Session (offline logging, [ADR-003](../../architecture/adr/ADR-003-offline-workout-session-logging.md)), Progress Analytics as an internal capability ([ADR-004](../../architecture/adr/ADR-004-progress-tracking-not-retroactively-recomputed.md)).
 
-Each has only a placeholder `README.md` — no `domain.md`/`architecture.md`/`api-contracts.md`/`decisions/`/`open-questions.md` yet. None are implemented; this branch produces documentation only.
+`exercise-service` and `training-planning-service` now have populated `domain.md`/`architecture.md`/`open-questions.md` (central-loop output — the former reconciled against real implementation work in `Forma.Exercise`, the latter prescriptive for a still-greenfield `Forma.Planner`). `identity-service` and `training-execution-service` still have only a placeholder `README.md`. `api-contracts.md`/`decisions/` stay unpopulated for all four, pending the integration-pattern decision. This branch itself still produces documentation only — implementation happens in each service's own repository.
 
 ## Cross-service consequence to design next
 

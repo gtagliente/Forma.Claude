@@ -9,7 +9,7 @@ This directory is the persistent, file-based memory of the Forma project. Per `C
 | [product/](product/README.md) | Whole product | Vision, requirements, domain model, glossary |
 | [architecture/](architecture/README.md) | Whole system | System context, service map, context map, ADRs |
 | [engineering/](engineering/README.md) | Whole system | Coding standards, git workflow, testing, devops |
-| [agents/](agents/README.md) | Whole system | Role definitions for each AI agent used on the project |
+| [../.claude/agents/](../.claude/agents/) | Whole system | Role definitions for each AI agent used on the project — live Claude Code subagents (`analyst`, `architect`, `challenger`), not markdown docs |
 | [features/](features/README.md) | Single feature | Per-feature requirements, decisions, notes |
 | [branches/](branches/README.md) | Single git branch | Branch-scoped, temporary working context |
 | [services/](services/README.md) | Single service | Per-service domain, architecture, API contracts, decisions |

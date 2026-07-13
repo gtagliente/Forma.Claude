@@ -1,10 +1,10 @@
 # exercise-service — Domain (Implementation-Relevant Detail)
 
-_Central-loop output (Analyst/Architect), reconciled against what's actually implemented in `Forma.Exercise` as of this pass. This is the "high-level instructions/technical definitions" the service's own local pipeline (see `Forma.Exercise/docs/agents/process.md`) reads before starting feature work — see `../../product/domain-model.md` for the full, system-wide version of everything below._
+_Central-loop output (Analyst/Architect), reconciled against what's actually implemented in `Forma.Exercise` as of this pass. This is the "high-level instructions/technical definitions" the service's own local pipeline (see `Forma.Exercise/.claude/agents/`) reads before starting feature work — see `../../product/domain-model.md` for the full, system-wide version of everything below._
 
 ## Aggregate: Exercise
 
-**Confirmed correct as built.** `Exercise` is the aggregate root (`Forma.Domain.Entities.ExerciseAggregate.Exercise`), matching the central domain model's Exercise concept. Current shape: `Name` (unique per ownership scope), `Description`, `MuscleGroups` (multi-valued), `OwnerId`, `ParentId`, plus a child collection of resources. Construction is factory-based (`Exercise.Create`/`Update`/`Delete`) with domain-side uniqueness/hierarchy checks — good, keep this pattern for new mutations rather than exposing public setters. Full CRUD is now wired end-to-end (Create, Update, Delete, plus `SetParent`/`ClearParent`) — see `Forma.Exercise/docs/features/FT-003-update-delete/`.
+**Confirmed correct as built.** `Exercise` is the aggregate root (`Forma.Domain.Entities.ExerciseAggregate.Exercise`), matching the central domain model's Exercise concept. Current shape: `Name` (unique per ownership scope), `Description`, `MuscleGroups` (multi-valued), `OwnerId`, `ParentId`, plus a child collection of resources. Construction is factory-based (`Exercise.Create`/`Update`/`Delete`) with domain-side uniqueness/hierarchy checks — good, keep this pattern for new mutations rather than exposing public setters. Full CRUD is now wired end-to-end (Create, Update, Delete, plus `SetParent`/`ClearParent`) — see `Forma.Exercise/docs/features/FT-003-update-delete.md`.
 
 ## Media Resource — implemented as `ExerciseResource`
 
@@ -23,11 +23,11 @@ Confirmed via code search — none of the following exist in `Forma.Exercise` to
 
 ## Now built: Ownership / visibility
 
-`Exercise.OwnerId` (`Guid?`) — null means shared-library, non-null means private to that owner — went through `Forma.Exercise`'s own feature pipeline (`Forma.Exercise/docs/features/FT-001-ownership-visibility/`). No cross-service impact (references `identity-service`'s `User` by ID only, no real auth wiring yet since `identity-service` isn't built — see that feature's `design.md` for the caller-supplied stand-in). Name uniqueness is scoped by ownership (shared names unique among themselves; each owner's private names unique among their own), not global as it was before.
+`Exercise.OwnerId` (`Guid?`) — null means shared-library, non-null means private to that owner — went through `Forma.Exercise`'s own feature pipeline (`Forma.Exercise/docs/features/FT-001-ownership-visibility.md`). No cross-service impact (references `identity-service`'s `User` by ID only, no real auth wiring yet since `identity-service` isn't built — see that feature's `design.md` for the caller-supplied stand-in). Name uniqueness is scoped by ownership (shared names unique among themselves; each owner's private names unique among their own), not global as it was before.
 
 ## Now built: Exercise hierarchy
 
-`Exercise.ParentId` (`ExerciseId?`, self-referencing) — went through `Forma.Exercise/docs/features/FT-002-exercise-hierarchy/`. Child aggregate holds the parent's ID only, per this doc's earlier aggregate-boundary guidance. Cycle and self-parenting are prevented; cross-visibility (can a private Exercise specialize a shared one?) is left **permissive and unrestricted** as a provisional implementation default — the central open question (`open-questions.md` #6) is still unresolved, this doesn't answer it.
+`Exercise.ParentId` (`ExerciseId?`, self-referencing) — went through `Forma.Exercise/docs/features/FT-002-exercise-hierarchy.md`. Child aggregate holds the parent's ID only, per this doc's earlier aggregate-boundary guidance. Cycle and self-parenting are prevented; cross-visibility (can a private Exercise specialize a shared one?) is left **permissive and unrestricted** as a provisional implementation default — the central open question (`open-questions.md` #6) is still unresolved, this doesn't answer it.
 
 ## What this service does NOT own
 

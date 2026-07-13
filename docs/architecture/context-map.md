@@ -34,7 +34,7 @@ The three domain areas above, plus Identity, are each an independently deployabl
 
 No service is proposed for Progress Analytics or AI Enrichment independently; both remain internal capabilities of the service that already hosts them (Training Execution and Exercise Library respectively) — that call is about the *concept's* independence, not the deployment unit, and is unaffected by this decision.
 
-Independent datastores mean no cross-service joins or foreign keys — every arrow in "Relationships between concepts" below is now also a **service boundary**, resolved via API calls or denormalized copies, not database references. See ADR-005 for the concrete consequence this has on Training Planning → Training Execution specifically (Workout Version pinning). Inter-service integration pattern (sync vs. async) is not yet decided — belongs in `integration-patterns.md`, currently empty.
+Independent datastores mean no cross-service joins or foreign keys — every arrow in "Relationships between concepts" below is now also a **service boundary**, resolved via API calls or denormalized copies, not database references. See ADR-005 for the concrete consequence this has on Training Planning → Training Execution specifically (Workout Version pinning). Inter-service integration pattern (sync vs. async) is decided for one concrete pair — see `integration-patterns.md`/[ADR-006](adr/ADR-006-cross-service-reference-integrity.md) (Accepted: direct synchronous calls, Exercise↔Training-Planning existence/reference checks). Not yet extended to every service pair — Identity/`OwnerId` fan-out in particular remains open, see `../services/identity-service/open-questions.md`.
 
 ## Relationships between concepts (summary)
 
