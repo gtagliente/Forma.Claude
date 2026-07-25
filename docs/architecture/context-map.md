@@ -36,6 +36,8 @@ No service is proposed for Progress Analytics or AI Enrichment independently; bo
 
 Independent datastores mean no cross-service joins or foreign keys — every arrow in "Relationships between concepts" below is now also a **service boundary**, resolved via API calls or denormalized copies, not database references. See ADR-005 for the concrete consequence this has on Training Planning → Training Execution specifically (Workout Version pinning). Inter-service integration pattern (sync vs. async) is decided for one concrete pair — see `integration-patterns.md`/[ADR-006](adr/ADR-006-cross-service-reference-integrity.md) (Accepted: direct synchronous calls, Exercise↔Training-Planning existence/reference checks). Not yet extended to every service pair — Identity/`OwnerId` fan-out in particular remains open, see `../services/identity-service/open-questions.md`.
 
+`identity-service` is also now a real *token-issuing* dependency for Exercise Library and Training Planning, not just a data-ownership reference: both services independently validate bearer tokens `identity-service` issues (shared HMAC secret, no shared database or API call involved in validation itself) — see [ADR-007](adr/ADR-007-jwt-bearer-authentication.md) (Proposed). This is a narrower, security-specific relationship than the `OwnerId` fan-out question above, which remains open on its own terms.
+
 ## Relationships between concepts (summary)
 
 ```

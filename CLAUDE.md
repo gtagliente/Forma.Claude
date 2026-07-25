@@ -439,3 +439,19 @@ Before writing production code:
 Do not start implementation until the domain and architecture are sufficiently understood.
 
 The goal is to build a product, not just write code.
+
+
+## Services
+
+This Repository is an orchestrator for a bunch o services that compose the application.
+In each service foder, you can find claude.md that describe services and have reference to various specifications.
+
+These are the path for other services:
+- Exercise:
+  ..\Forma2\Forma.Exercise
+- Auth:
+  ..\Forma.Resource\Forma.Auth
+- Planner
+  ..\Forma.Resource\Forma.Planner
+- Web app
+  ..\Forma.Resource\Workout_React

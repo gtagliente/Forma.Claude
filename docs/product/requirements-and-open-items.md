@@ -22,7 +22,7 @@ Workflow 4 in particular is under-specified — see open items.
 
 ## Missing requirements (not addressed at all in `CLAUDE.md`)
 
-- **Identity & access** — accounts, authentication, authorization, data ownership/privacy. `CLAUDE.md` says nothing; the persona question is now resolved ([ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md) — single normal user), but auth/account mechanics themselves are still undesigned.
+- **Identity & access** — accounts, authentication, authorization, data ownership/privacy. `CLAUDE.md` says nothing; the persona question is resolved ([ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md) — single normal user). Authentication mechanics themselves, undesigned as of Iteration 1/2, are now actively being closed: `identity-service` already issues real bearer tokens, and `exercise-service`/`training-planning-service` are being changed to derive the acting user from a validated token instead of trusting a caller-supplied id. See "Authenticated request identity," below, for the resolved business requirement and what's handed to the Architect. Authorization/roles beyond the single-persona model (e.g. a content-curator role for the shared library) remain explicitly out of scope — see Users, item 3.
 - **Multi-user relationships** — sharing, following, coach-athlete, social features. `CLAUDE.md` says nothing, and [ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md) explicitly excludes coach-athlete delegation from this iteration; general social/sharing features remain unaddressed.
 - **Units & localization** — kg vs lb, metric vs imperial, language. **Explicitly deferred** — a deliberate scope choice for this iteration, not an oversight.
 - **Body metrics / goals** — bodyweight, measurements, target goals. **Explicitly deferred** — Progress Tracking's core (PRs, volume, trends) is fully derivable from Workout Session data alone, so this was never a blocker; see `../../scratchpad/open-questions/iteration-1.md` (#7).
@@ -91,8 +91,55 @@ Given one near-certain (User) and one imminent (Workout↔Routine) additional oc
 3. **Shared-Exercise "undeletable once popular" tension** (flagged above, not resolved) — worth a joint look once the shared-library governance/curatorship question (Users, item 3) is addressed, since any softer treatment for shared Exercises (e.g. archive/retire) is entangled with who's even allowed to delete one in the first place.
 4. **User/account deletion across all four services** — not solved here, flagged as the next, near-certain occurrence of this same shape once `identity-service` is real. No immediate action needed; just don't let it surface as a surprise later.
 
+## Authenticated request identity (Iteration 3)
+
+### Trigger
+
+`exercise-service` and `training-planning-service` were deliberately built with a caller-supplied `RequestingUserId`/`OwnerId` parameter standing in for real authentication (`Forma.Exercise/docs/features/FT-001-ownership-visibility.md` → "Auth stand-in"), explicitly flagged at the time as a gap to close once `identity-service` could provide real auth. `identity-service` (`Forma.Resource/Forma.Auth`) already issues real bearer tokens today (JWT) — it was never a placeholder for the authentication *mechanism* itself, only for the other two services' consumption of it. That consumption gap is now being closed, starting with `exercise-service`, then `training-planning-service` (near-identical architectures).
+
+### Business rules resolved
+
+**1. "A request is authenticated" means every operation acts strictly on behalf of one verified identity — this enforces an already-decided concept, it does not introduce a new one.**
+
+Given the single normal-user model ([ADR-001](../architecture/adr/ADR-001-user-model-iteration-1.md)), closing this gap does not add anything to the domain model: ownership (a user owns their own Exercises/Workouts/Routines — `domain-model.md` → Exercise, FT-001) was already decided; what was missing was enforcement. The requirement: a user must never be able to view, list, edit, or delete another user's private data by supplying a different id, and any operation scoped to "my data" must act on the identity the token proves, never on an id the caller merely asserts. This was already FT-001's implicit, flagged expectation — this work closes that gap. It does not reopen ADR-001, and it does not introduce roles, permissions, or any Identity concept beyond the single `User` already confirmed minimal in `bounded-contexts.md` → Identity.
+
+**2. Shared-library reads plausibly shouldn't require a token — flagged as a product decision, not defaulted silently.**
+
+The visibility model (`OwnerId == null` = shared, visible to everyone — FT-001) implies a natural split: any operation that could expose or act on a specific user's *private* data must require a verified identity; a read that only ever returns shared-library content exposes no private data, and nothing in `CLAUDE.md` or prior analysis suggests a user should need an account just to browse the shared Exercise library. Recommendation to the Architect: require authentication for anything touching a user's own data (their private Exercises/Workouts/Routines, any create/edit/delete, anything filtered to "mine"); do not require it for a pure shared-library browse. This is a recommendation, not a locked decision — flagged explicitly so the product owner can confirm or override rather than have it decided implicitly by whichever way the Architect finds easiest to implement.
+
+**3. The "content curator" open item (Users, item 3) is unaffected and stays out of scope.**
+
+Deciding *who* is allowed to create a shared/unowned Exercise is a materially bigger decision (a real authorization/roles model) than "verify who the caller claims to be." Folding it into this work would be exactly the premature complexity `CLAUDE.md` warns against, with no concrete requirement forcing it now. This work verifies identity; it does not add authorization tiers. The curator question remains open, untouched by this iteration.
+
+### Open questions for the Architect
+
+1. **Token validation and failure handling** — how each service validates the token (signature, expiry) and what a request with a missing/invalid/expired token gets back, is a technical decision, not a business rule; the business requirement is only that no operation touching a user's private data may proceed without a validated identity behind it.
+2. **Whether to require authentication universally, or leave shared-library reads open** (business rule 2, above) — recommend confirming explicitly with the product owner rather than defaulting either way based on implementation convenience.
+
+## Read-after-write freshness (Iteration 3)
+
+### Trigger
+
+Product owner report: after creating or editing an Exercise or a Workout in the frontend, the change doesn't appear to show up. Confirmed root cause, taken here as ground truth (not re-derived — this is a technical defect, not a domain question): `exercise-service` and `training-planning-service` cache list-query results under a per-user-scoped cache key, but their event handlers invalidate the cache using an unscoped key, so invalidation never matches the real cached entry — users see stale lists until the cache's own TTL expires. Identical shape across Exercise/Workout/Routine in both services.
+
+### Business rule resolved
+
+**A user must see their own create/edit/delete reflected on their very next list or view of that data — this is a correctness guarantee, not an eventual-consistency window a user should ever have to tolerate.**
+
+There is no legitimate product reason for a user's own edit to be invisible to themselves afterward. Framed as a requirement: after any operation that creates, edits, or deletes a user's own Exercise, Workout, or Routine, that same user's subsequent list/view requests for that data must reflect the change — immediately, not "eventually, once a cache expires." This is a defect against an already-intended behavior, not a new domain concept: the per-user cache key was deliberately introduced by FT-001 specifically to scope visibility correctly (`Forma.Exercise/docs/features/FT-001-ownership-visibility.md` → "Read side"); only the invalidation side wasn't kept in sync. No `domain-model.md` change follows from this — it's a clear requirement statement for the Architect/service-loop fix to be checked against.
+
+**Scope: read-after-your-own-write is the hard requirement; instant cross-user propagation on shared content is not.**
+
+For a *shared* Exercise, one user's edit becoming visible to *other* users within the existing cache window (currently 2h absolute / 60s sliding) is acceptable — nothing in prior analysis establishes an expectation that one user's edit propagate instantly to every other viewer of shared content, the way there is for the editor's own next read of their own write. Recommendation to the Architect: the fix must guarantee the acting user's own subsequent reads are fresh; guaranteeing instant freshness for every other user's view of a shared-library change is not a requirement this iteration, even if a correct fix happens to deliver it as a side effect.
+
+### Open questions for the Architect
+
+None — this is a defect against an already-decided requirement (FT-001's per-user visibility scoping), not a new open item. The fix itself (aligning the cache key used for invalidation with the one used for storage) is Architect/service-loop scope.
+
 ## Recommendation for next iteration
 
 _Iteration 1_: every originally-flagged open item is now either resolved (ADR-001 through ADR-004, plus the domain-model additions for Exercise ownership/hierarchy, Set, Enrichment promotion, and Media Resource) or explicitly deferred as a deliberate scope choice (body metrics/goals, units/localization, notifications, monetization — see `../../scratchpad/open-questions/iteration-1.md`).
 
 _Iteration 2_: the cross-context reference integrity question (above) is resolved at the business-rule level for its two triggering instances (Exercise↔Workout, both directions). Four items are now handed to the Architect (see "Open questions for the Architect," above) — none block further product analysis; they block the concrete implementation of Exercise deletion's safeguard and Workout creation's validation, which is Architect/service-loop scope from here.
+
+_Iteration 3_: two independent gaps are resolved at the requirement level and handed to the Architect. Authenticated request identity enforces an already-decided concept (ADR-001 ownership) rather than introducing a new one — no domain-model change, two open questions for the Architect (token/failure-handling mechanism; whether shared-library reads stay anonymous). Read-after-write freshness is confirmed as a hard correctness requirement (a user's own writes must be visible to themselves on the next read) scoped to the acting user, not a system-wide instant-consistency requirement — a defect fix against FT-001's intended behavior, not a new open item.
